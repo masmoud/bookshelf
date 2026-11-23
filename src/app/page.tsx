@@ -1,12 +1,57 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
+import { useFetchBooks } from '@/hooks/useFetchBooks';
+import { useSearchBooks } from '@/hooks/useSearchBooks';
+
 import BookList from '@/components/books/BookList';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import Loader from '@/components/ui/Loader';
-import { useFetchBooks } from '@/hooks/useFetchBooks';
+import SearchBar from '@/components/ui/SearchBar';
 
 export default function HomePage() {
-  const { books, loading, error, retry } = useFetchBooks();
+  const {
+    books: popularBooks,
+    loading: popularLoading,
+    error: popularError,
+    retry
+  } = useFetchBooks();
+
+  const {
+    books: searchResults,
+    loading: searchLoading,
+    error: searchError,
+    hasSearched,
+    search,
+    resetSearch
+  } = useSearchBooks();
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const isSearching = hasSearched;
+
+  const books = isSearching ? searchResults : popularBooks;
+  const loading = isSearching ? searchLoading : popularLoading;
+  const error = isSearching ? searchError : popularError;
+
+  useEffect(() => {
+    function handleReset() {
+      setSearchQuery('');
+      resetSearch();
+    }
+
+    window.addEventListener('bookshelf:reset-search', handleReset);
+
+    return () => {
+      window.removeEventListener('bookshelf:reset-search', handleReset);
+    };
+  }, [resetSearch]);
+
+  function handleSearch(query: string) {
+    setSearchQuery(query);
+    search(query);
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12">
@@ -24,25 +69,30 @@ export default function HomePage() {
 
       {/* Search bar */}
       <div className="mx-auto mb-12 max-w-xl">
-        <input
-          type="text"
-          placeholder="Search for a book or an author..."
-          disabled
-          className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed"
+        <SearchBar
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          onSearch={handleSearch}
         />
 
-        <p className="mt-2 text-xs text-slate-400">
-          Search functionality coming soon.
-        </p>
+        {hasSearched && (
+          <p className="mt-3 text-sm text-slate-500">
+            Search results for &quot;{searchQuery}&quot;
+          </p>
+        )}
       </div>
 
       {/* Books section */}
       <section>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">Popular books</h2>
+          <h2 className="text-2xl font-bold text-slate-900">
+            {isSearching ? 'Search results' : 'Popular books'}
+          </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Discover books selected for you.
+            {isSearching
+              ? 'Books matching your search.'
+              : 'Discover books selected for you.'}
           </p>
         </div>
 
@@ -50,11 +100,20 @@ export default function HomePage() {
         {loading && <Loader message="Loading books..." />}
 
         {/* Error state */}
-        {!loading && error && <ErrorMessage message={error} onRetry={retry} />}
+        {!loading && error && (
+          <ErrorMessage
+            message={error}
+            onRetry={isSearching ? () => search(searchQuery) : retry}
+          />
+        )}
 
         {/* Empty state */}
         {!loading && !error && books.length === 0 && (
-          <p className="py-10 text-center text-slate-500">No books found.</p>
+          <p className="py-10 text-center text-slate-500">
+            {isSearching
+              ? 'No books found. Try another search.'
+              : 'No books available.'}
+          </p>
         )}
 
         {/* Books grid */}

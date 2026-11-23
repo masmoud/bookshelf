@@ -43,3 +43,17 @@ export async function getPopularBooks(limit = 12): Promise<Book[]> {
     limit: String(limit)
   });
 }
+
+/**
+ * Search books by title or author.
+ */
+export async function searchBooks(query: string, limit = 12): Promise<Book[]> {
+  if (!query.trim()) {
+    return [];
+  }
+
+  return fetchBooks({
+    q: query.trim(),
+    limit: String(limit)
+  });
+}
