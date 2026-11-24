@@ -31,7 +31,28 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  console.log('[PROXY] Path:', request.nextUrl.pathname);
+  console.log('[PROXY] User:', user?.id ?? 'Not authenticated');
+
+  // Protect the favorites page
+  if (request.nextUrl.pathname.startsWith('/favorites') && !user) {
+    const redirectUrl = request.nextUrl.clone();
+
+    redirectUrl.pathname = '/login';
+    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
+
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+
+    // Preserve refreshed authentication cookies
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+
+    return redirectResponse;
+  }
 
   return supabaseResponse;
 }

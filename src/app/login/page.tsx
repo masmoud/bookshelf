@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, type SubmitEvent } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, type SubmitEvent } from 'react';
 
 import { useLogin } from '@/hooks/useLogin';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const redirectTo = searchParams.get('redirectTo');
   const { login, loading, error } = useLogin();
 
   const [email, setEmail] = useState('');
@@ -19,7 +22,12 @@ export default function LoginPage() {
     const success = await login(email, password);
 
     if (success) {
-      router.push('/');
+      const destination =
+        redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
+          ? redirectTo
+          : '/';
+
+      router.push(destination);
       router.refresh();
     }
   }

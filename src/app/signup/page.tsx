@@ -21,7 +21,6 @@ export default function SignupPage() {
     const result = await signup(email, password, confirmPassword);
 
     if (result === 'success') {
-      // Session created: redirect to the home page.
       router.push('/');
       router.refresh();
     }
