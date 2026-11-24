@@ -54,12 +54,14 @@ export async function getPopularBooks(limit = 12): Promise<Book[]> {
  * Search books by title or author.
  */
 export async function searchBooks(query: string, limit = 12): Promise<Book[]> {
-  if (!query.trim()) {
+  const trimmedQuery = query.trim();
+
+  if (!trimmedQuery) {
     return [];
   }
 
   return fetchBooks({
-    q: query.trim(),
+    q: trimmedQuery,
     limit: String(limit)
   });
 }

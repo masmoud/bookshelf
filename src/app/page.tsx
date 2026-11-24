@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useFetchBooks } from '@/hooks/useFetchBooks';
 import { useSearchBooks } from '@/hooks/useSearchBooks';
 
+import BookFilters from '@/components/books/BookFilters';
 import BookList from '@/components/books/BookList';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import Loader from '@/components/ui/Loader';
 import SearchBar from '@/components/ui/SearchBar';
+import { normalizeText } from '@/utils/formatters';
 
 export default function HomePage() {
   const {
@@ -29,11 +31,72 @@ export default function HomePage() {
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filters
+  const [author, setAuthor] = useState('');
+  const [minYear, setMinYear] = useState('');
+  const [maxYear, setMaxYear] = useState('');
+  const [sortBy, setSortBy] = useState('relevance');
+
   const isSearching = hasSearched;
 
   const books = isSearching ? searchResults : popularBooks;
   const loading = isSearching ? searchLoading : popularLoading;
   const error = isSearching ? searchError : popularError;
+
+  const filteredBooks = useMemo(() => {
+    let result = [...books];
+
+    // Filter by author
+    if (author.trim()) {
+      const normalizedAuthor = normalizeText(author);
+
+      result = result.filter((book) =>
+        book.author_name?.some((name) =>
+          normalizeText(name).toLowerCase().includes(normalizedAuthor)
+        )
+      );
+    }
+
+    // Filter by publication year
+    if (minYear) {
+      result = result.filter(
+        (book) =>
+          book.first_publish_year !== undefined &&
+          book.first_publish_year >= Number(minYear)
+      );
+    }
+
+    if (maxYear) {
+      result = result.filter(
+        (book) =>
+          book.first_publish_year !== undefined &&
+          book.first_publish_year <= Number(maxYear)
+      );
+    }
+
+    // Sort books
+    switch (sortBy) {
+      case 'newest':
+        result.sort(
+          (a, b) => (b.first_publish_year ?? 0) - (a.first_publish_year ?? 0)
+        );
+        break;
+
+      case 'oldest':
+        result.sort(
+          (a, b) =>
+            (a.first_publish_year ?? Infinity) -
+            (b.first_publish_year ?? Infinity)
+        );
+        break;
+
+      case 'editions':
+        result.sort((a, b) => (b.edition_count ?? 0) - (a.edition_count ?? 0));
+        break;
+    }
+
+    return result;
+  }, [books, author, minYear, maxYear, sortBy]);
 
   useEffect(() => {
     function handleReset() {
@@ -51,6 +114,13 @@ export default function HomePage() {
   function handleSearch(query: string) {
     setSearchQuery(query);
     search(query);
+  }
+
+  function resetFilters() {
+    setAuthor('');
+    setMinYear('');
+    setMaxYear('');
+    setSortBy('relevance');
   }
 
   return (
@@ -96,6 +166,19 @@ export default function HomePage() {
           </p>
         </div>
 
+        {/* Book filters */}
+        <BookFilters
+          author={author}
+          minYear={minYear}
+          maxYear={maxYear}
+          sortBy={sortBy}
+          onAuthorChange={setAuthor}
+          onMinYearChange={setMinYear}
+          onMaxYearChange={setMaxYear}
+          onSortChange={setSortBy}
+          onReset={resetFilters}
+        />
+
         {/* Loading state */}
         {loading && <Loader message="Loading books..." />}
 
@@ -108,7 +191,7 @@ export default function HomePage() {
         )}
 
         {/* Empty state */}
-        {!loading && !error && books.length === 0 && (
+        {!loading && !error && filteredBooks.length === 0 && (
           <p className="py-10 text-center text-slate-500">
             {isSearching
               ? 'No books found. Try another search.'
@@ -117,7 +200,9 @@ export default function HomePage() {
         )}
 
         {/* Books grid */}
-        {!loading && !error && books.length > 0 && <BookList books={books} />}
+        {!loading && !error && filteredBooks.length > 0 && (
+          <BookList books={filteredBooks} />
+        )}
       </section>
     </div>
   );
