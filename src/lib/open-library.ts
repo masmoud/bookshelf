@@ -1,4 +1,10 @@
-import type { Book, OpenLibrarySearchResponse } from '@/types/book';
+import type {
+  Book,
+  BookDetailsData,
+  OpenLibraryAuthorResponse,
+  OpenLibrarySearchResponse,
+  OpenLibraryWorkResponse
+} from '@/types/book';
 
 const API_URL = 'https://openlibrary.org';
 
@@ -56,4 +62,61 @@ export async function searchBooks(query: string, limit = 12): Promise<Book[]> {
     q: query.trim(),
     limit: String(limit)
   });
+}
+
+/**
+ * Get detailed information about a book.
+ */
+export async function getBookById(id: string): Promise<BookDetailsData> {
+  const response = await fetch(
+    `${API_URL}/works/${encodeURIComponent(id)}.json`
+  );
+
+  if (!response.ok) {
+    throw new Error('Unable to fetch book details.');
+  }
+
+  const data: OpenLibraryWorkResponse = await response.json();
+
+  // Fetch author names.
+  const authors = await Promise.all(
+    (data.authors ?? []).map(async ({ author }) => {
+      try {
+        const authorResponse = await fetch(`${API_URL}${author.key}.json`);
+
+        if (!authorResponse.ok) {
+          return null;
+        }
+
+        const authorData: OpenLibraryAuthorResponse =
+          await authorResponse.json();
+
+        return authorData.name ?? null;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const description =
+    typeof data.description === 'string'
+      ? data.description
+      : data.description?.value;
+
+  const publicationYear = data.first_publish_date
+    ? Number(data.first_publish_date.match(/\d{4}/)?.[0])
+    : undefined;
+
+  return {
+    key: data.key,
+    title: data.title,
+    author_name: authors.filter((author): author is string => author !== null),
+    first_publish_year:
+      publicationYear && !Number.isNaN(publicationYear)
+        ? publicationYear
+        : undefined,
+    cover_i: data.covers?.[0],
+    subject: data.subjects,
+    description
+  };
 }

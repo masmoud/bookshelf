@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html data-scroll-behavior="smooth" lang="fr">
       <body className="flex flex-col min-h-screen antialiased">
         <Header />
         <main className="flex-1">{children}</main>
