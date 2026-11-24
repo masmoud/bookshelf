@@ -69,6 +69,7 @@ export default function Header() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={item.href !== '/favorites'}
               onClick={
                 item.href === '/'
                   ? () =>
