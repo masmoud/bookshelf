@@ -76,6 +76,7 @@ export function useFetchBooks() {
 
   return {
     books,
+    total,
     loading,
     loadingMore,
     error,

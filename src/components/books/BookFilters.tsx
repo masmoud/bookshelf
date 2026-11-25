@@ -67,6 +67,9 @@ export default function BookFilters({
           <input
             id="minYear"
             type="number"
+            min="1"
+            max={maxYear || new Date().getFullYear()}
+            step="1"
             value={minYear}
             onChange={(event) => onMinYearChange(event.target.value)}
             placeholder="e.g. 1990"
@@ -85,6 +88,9 @@ export default function BookFilters({
           <input
             id="maxYear"
             type="number"
+            min={minYear || '1'}
+            max={new Date().getFullYear()}
+            step="1"
             value={maxYear}
             onChange={(event) => onMaxYearChange(event.target.value)}
             placeholder="e.g. 2025"

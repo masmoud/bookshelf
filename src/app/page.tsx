@@ -15,6 +15,7 @@ import { normalizeText } from '@/utils/formatters';
 export default function HomePage() {
   const {
     books: popularBooks,
+    total: popularTotal,
     loading: popularLoading,
     loadingMore: popularLoadingMore,
     error: popularError,
@@ -25,6 +26,7 @@ export default function HomePage() {
 
   const {
     books: searchResults,
+    total: searchTotal,
     loading: searchLoading,
     loadingMore: searchLoadingMore,
     error: searchError,
@@ -46,6 +48,7 @@ export default function HomePage() {
   const isSearching = hasSearched;
 
   const books = isSearching ? searchResults : popularBooks;
+  const totalBooks = isSearching ? searchTotal : popularTotal;
   const loading = isSearching ? searchLoading : popularLoading;
   const error = isSearching ? searchError : popularError;
 
@@ -55,7 +58,11 @@ export default function HomePage() {
 
   const loadMore = isSearching ? loadMoreSearch : loadMorePopular;
 
+  const hasInvalidYearRange =
+    minYear !== '' && maxYear !== '' && Number(minYear) > Number(maxYear);
+
   const filteredBooks = useMemo(() => {
+    if (hasInvalidYearRange) return [];
     let result = [...books];
 
     // Filter by author
@@ -89,17 +96,21 @@ export default function HomePage() {
     // Sort books
     switch (sortBy) {
       case 'newest':
-        result.sort(
-          (a, b) => (b.first_publish_year ?? 0) - (a.first_publish_year ?? 0)
-        );
+        result.sort((a, b) => {
+          if (!a.first_publish_year) return 1;
+          if (!b.first_publish_year) return -1;
+
+          return b.first_publish_year - a.first_publish_year;
+        });
         break;
 
       case 'oldest':
-        result.sort(
-          (a, b) =>
-            (a.first_publish_year ?? Infinity) -
-            (b.first_publish_year ?? Infinity)
-        );
+        result.sort((a, b) => {
+          if (!a.first_publish_year) return 1;
+          if (!b.first_publish_year) return -1;
+
+          return a.first_publish_year - b.first_publish_year;
+        });
         break;
 
       case 'editions':
@@ -108,12 +119,13 @@ export default function HomePage() {
     }
 
     return result;
-  }, [books, author, minYear, maxYear, sortBy]);
+  }, [books, author, minYear, maxYear, sortBy, hasInvalidYearRange]);
 
   useEffect(() => {
     function handleReset() {
       setSearchQuery('');
       resetSearch();
+      resetFilters();
     }
 
     window.addEventListener('bookshelf:reset-search', handleReset);
@@ -191,6 +203,19 @@ export default function HomePage() {
           onReset={resetFilters}
         />
 
+        {hasInvalidYearRange && (
+          <p className="mb-4 text-sm text-red-600">
+            The starting year cannot be greater than the ending year.
+          </p>
+        )}
+
+        {/* Loaded books count */}
+        {!loading && !error && !hasInvalidYearRange && books.length > 0 && (
+          <p className="mb-4 text-sm text-slate-500">
+            Showing {filteredBooks.length} of {totalBooks} loaded books
+          </p>
+        )}
+
         {/* Loading state */}
         {loading && <Loader message="Loading books..." />}
 
@@ -226,7 +251,7 @@ export default function HomePage() {
         )}
 
         {/* Load more button */}
-        {!loading && !error && hasMore && (
+        {!loading && !error && hasMore && !hasInvalidYearRange && (
           <div className="mt-10 flex justify-center">
             <button
               type="button"

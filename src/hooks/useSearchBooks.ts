@@ -127,6 +127,7 @@ export function useSearchBooks() {
 
   return {
     books,
+    total,
     loading,
     loadingMore,
     error,
