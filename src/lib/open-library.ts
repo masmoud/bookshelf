@@ -2,6 +2,8 @@ import type {
   Book,
   BookDetailsData,
   OpenLibraryAuthorResponse,
+  OpenLibraryAuthorSearchResponse,
+  OpenLibraryAuthorWorksResponse,
   OpenLibrarySearchResponse,
   OpenLibraryWorkResponse
 } from '@/types/book';
@@ -21,7 +23,15 @@ const BOOK_FIELDS = [
 /**
  * Fetch books from Open Library.
  */
-async function fetchBooks(params: Record<string, string>): Promise<Book[]> {
+
+type BookSearchResult = {
+  books: Book[];
+  total: number;
+};
+
+async function fetchBooks(
+  params: Record<string, string>
+): Promise<BookSearchResult> {
   const searchParams = new URLSearchParams({
     ...params,
     fields: BOOK_FIELDS
@@ -37,33 +47,111 @@ async function fetchBooks(params: Record<string, string>): Promise<Book[]> {
 
   const data: OpenLibrarySearchResponse = await response.json();
 
-  return data.docs;
+  return { books: data.docs, total: data.numFound };
 }
 
 /**
  * Get a selection of popular books.
  */
-export async function getPopularBooks(limit = 12): Promise<Book[]> {
+export async function getPopularBooks(
+  limit = 12,
+  offset = 0
+): Promise<BookSearchResult> {
   return fetchBooks({
     q: 'bestseller',
-    limit: String(limit)
+    limit: String(limit),
+    offset: String(offset)
   });
 }
 
 /**
  * Search books by title or author.
  */
-export async function searchBooks(query: string, limit = 12): Promise<Book[]> {
+export async function searchBooks(
+  query: string,
+  limit = 12,
+  offset = 0
+): Promise<BookSearchResult> {
   const trimmedQuery = query.trim();
 
   if (!trimmedQuery) {
-    return [];
+    return { books: [], total: 0 };
   }
 
   return fetchBooks({
     q: trimmedQuery,
-    limit: String(limit)
+    limit: String(limit),
+    offset: String(offset)
   });
+}
+
+/**
+ * Search books by author.
+ */
+export async function searchBooksByAuthor(
+  query: string,
+  limit = 12,
+  offset = 0
+): Promise<BookSearchResult | null> {
+  const searchParams = new URLSearchParams({ q: query });
+
+  const response = await fetch(
+    `${API_URL}/search/authors.json?${searchParams.toString()}`
+  );
+
+  if (!response.ok) {
+    throw new Error('Unable to search for author.');
+  }
+
+  const data: OpenLibraryAuthorSearchResponse = await response.json();
+
+  const normalizedQuery = query
+    .toLowerCase()
+    .replace(/[.,]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const author = data.docs.find(
+    (item) =>
+      item.name
+        .toLowerCase()
+        .replace(/[.,]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim() === normalizedQuery
+  );
+
+  if (!author) return null;
+
+  const worksParams = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset)
+  });
+
+  const worksResponse = await fetch(
+    `${API_URL}${`/authors/${author.key}/works.json`}?${worksParams.toString()}`
+  );
+
+  if (!worksResponse.ok) {
+    throw new Error("Unable to fetch author's books.");
+  }
+
+  const worksData: OpenLibraryAuthorWorksResponse = await worksResponse.json();
+
+  const books: Book[] = worksData.entries.map((work) => ({
+    key: work.key,
+    title: work.title,
+    author_name: [author.name],
+    first_publish_year: work.first_publish_date
+      ? Number.parseInt(work.first_publish_date.slice(-4), 10)
+      : undefined,
+    cover_i: work.covers?.[0],
+    subject: work.subjects
+  }));
+
+  return {
+    books,
+    total: worksData.size
+  };
 }
 
 /**

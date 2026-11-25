@@ -4,12 +4,18 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { Book } from '@/types/book';
 import { getPopularBooks } from '@/lib/open-library';
+import { BOOKS_PAGE_SIZE } from '@/constants/book';
 
 export function useFetchBooks() {
   const [books, setBooks] = useState<Book[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [offset, setOffset] = useState(0);
+
+  const hasMore = offset < total;
 
   const retry = useCallback(() => {
     setLoading(true);
@@ -22,16 +28,16 @@ export function useFetchBooks() {
 
     async function fetchBooks() {
       try {
-        const data = await getPopularBooks();
+        const data = await getPopularBooks(BOOKS_PAGE_SIZE, 0);
 
         if (!ignore) {
-          setBooks(data);
+          setBooks(data.books);
+          setTotal(data.total);
+          setOffset(data.books.length);
         }
       } catch (err) {
         if (!ignore) {
-          setError(
-            err instanceof Error ? err.message : 'An error occurred.'
-          );
+          setError(err instanceof Error ? err.message : 'An error occurred.');
         }
       } finally {
         if (!ignore) {
@@ -47,10 +53,34 @@ export function useFetchBooks() {
     };
   }, [retryCount]);
 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    setError(null);
+
+    try {
+      const data = await getPopularBooks(BOOKS_PAGE_SIZE, offset);
+
+      setBooks((current) => [...current, ...data.books]);
+      setTotal(data.total);
+      setOffset((current) => current + data.books.length);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Unable to load more books.'
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [offset, loadingMore, hasMore]);
+
   return {
     books,
     loading,
+    loadingMore,
     error,
-    retry
+    hasMore,
+    retry,
+    loadMore
   };
 }

@@ -46,3 +46,22 @@ export interface OpenLibraryAuthorResponse {
 export interface OpenLibraryEditionsResponse {
   size: number;
 }
+
+export interface OpenLibraryAuthorSearchResponse {
+  numFound: number;
+  docs: {
+    key: string;
+    name: string;
+  }[];
+}
+
+export interface OpenLibraryAuthorWorksResponse {
+  size: number;
+  entries: {
+    key: string;
+    title: string;
+    covers?: number[];
+    first_publish_date?: string;
+    subjects?: string[];
+  }[];
+}

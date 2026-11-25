@@ -16,16 +16,22 @@ export default function HomePage() {
   const {
     books: popularBooks,
     loading: popularLoading,
+    loadingMore: popularLoadingMore,
     error: popularError,
+    hasMore: popularHasMore,
+    loadMore: loadMorePopular,
     retry
   } = useFetchBooks();
 
   const {
     books: searchResults,
     loading: searchLoading,
+    loadingMore: searchLoadingMore,
     error: searchError,
     hasSearched,
+    hasMore: searchHasMore,
     search,
+    loadMore: loadMoreSearch,
     resetSearch
   } = useSearchBooks();
 
@@ -42,6 +48,12 @@ export default function HomePage() {
   const books = isSearching ? searchResults : popularBooks;
   const loading = isSearching ? searchLoading : popularLoading;
   const error = isSearching ? searchError : popularError;
+
+  const loadingMore = isSearching ? searchLoadingMore : popularLoadingMore;
+
+  const hasMore = isSearching ? searchHasMore : popularHasMore;
+
+  const loadMore = isSearching ? loadMoreSearch : loadMorePopular;
 
   const filteredBooks = useMemo(() => {
     let result = [...books];
@@ -191,7 +203,7 @@ export default function HomePage() {
         )}
 
         {/* Empty state */}
-        {!loading && !error && filteredBooks.length === 0 && (
+        {!loading && !error && books.length === 0 && (
           <p className="py-10 text-center text-slate-500">
             {isSearching
               ? 'No books found. Try another search.'
@@ -199,9 +211,32 @@ export default function HomePage() {
           </p>
         )}
 
+        {!loading &&
+          !error &&
+          books.length > 0 &&
+          filteredBooks.length === 0 && (
+            <p className="py-10 text-center text-slate-500">
+              No books match your filters. Try adjusting your filters.
+            </p>
+          )}
+
         {/* Books grid */}
         {!loading && !error && filteredBooks.length > 0 && (
           <BookList books={filteredBooks} />
+        )}
+
+        {/* Load more button */}
+        {!loading && !error && hasMore && (
+          <div className="mt-10 flex justify-center">
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loadingMore ? 'Loading...' : 'Load more'}
+            </button>
+          </div>
         )}
       </section>
     </div>
