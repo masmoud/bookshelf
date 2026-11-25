@@ -1,10 +1,21 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { BOOKS_PAGE_SIZE } from '@/constants/book';
 import { searchBooks, searchBooksByAuthor } from '@/lib/open-library';
 import type { Book } from '@/types/book';
+
+function removeDuplicateBooks(books: Book[]): Book[] {
+  const seen = new Set<string>();
+
+  return books.filter((book) => {
+    if (seen.has(book.key)) return false;
+
+    seen.add(book.key);
+    return true;
+  });
+}
 
 export function useSearchBooks() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -17,10 +28,13 @@ export function useSearchBooks() {
   const [currentQuery, setCurrentQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'author' | 'books'>('books');
 
+  const searchId = useRef(0);
+
   const hasMore = offset < total;
 
   const search = useCallback(async (query: string) => {
     const trimmedQuery = query.trim();
+    const currentSearchId = ++searchId.current;
 
     if (!trimmedQuery) return;
 
@@ -48,14 +62,15 @@ export function useSearchBooks() {
       const data =
         authorResults ?? (await searchBooks(searchTerm, BOOKS_PAGE_SIZE, 0));
 
-      if (!authorResults && isAuthorSearch) {
-        setSearchMode('books');
-      }
+      if (currentSearchId !== searchId.current) return;
 
-      setBooks(data.books);
+      setSearchMode(authorResults ? 'author' : 'books');
+      setBooks(removeDuplicateBooks(data.books));
       setTotal(data.total);
       setOffset(data.books.length);
     } catch (err) {
+      if (currentSearchId !== searchId.current) return;
+
       setError(err instanceof Error ? err.message : 'Unable to fetch books.');
       setBooks([]);
     } finally {
@@ -66,6 +81,8 @@ export function useSearchBooks() {
   const loadMore = useCallback(async () => {
     if (loadingMore || loading || !hasMore || !currentQuery) return;
 
+    const currentSearchId = searchId.current;
+
     setLoadingMore(true);
     setError(null);
 
@@ -75,21 +92,28 @@ export function useSearchBooks() {
           ? await searchBooksByAuthor(currentQuery, BOOKS_PAGE_SIZE, offset)
           : await searchBooks(currentQuery, BOOKS_PAGE_SIZE, offset);
 
+      if (currentSearchId !== searchId.current) return;
+
       if (!data) return;
 
-      setBooks((current) => [...current, ...data.books]);
+      setBooks((current) => removeDuplicateBooks([...current, ...data.books]));
       setTotal(data.total);
       setOffset((current) => current + data.books.length);
     } catch (err) {
+      if (currentSearchId !== searchId.current) return;
+
       setError(
         err instanceof Error ? err.message : 'Unable to load more books.'
       );
     } finally {
-      setLoadingMore(false);
+      if (currentSearchId === searchId.current) {
+        setLoadingMore(false);
+      }
     }
   }, [loadingMore, loading, hasMore, currentQuery, offset, searchMode]);
 
   const resetSearch = useCallback(() => {
+    searchId.current += 1;
     setBooks([]);
     setTotal(0);
     setError(null);
