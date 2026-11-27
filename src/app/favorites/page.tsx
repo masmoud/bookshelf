@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
+import BookCard from '@/components/books/BookCard';
+import ErrorMessage from '@/components/ui/ErrorMessage';
+import Loader from '@/components/ui/Loader';
 import { useFavorites } from '@/hooks/useFavorites';
 import { getBookById } from '@/lib/open-library';
-import BookCard from '@/components/books/BookCard';
 import type { Book } from '@/types/book';
 
 export default function FavoritesPage() {
@@ -30,12 +32,19 @@ export default function FavoritesPage() {
 
     async function loadFavoriteBooks() {
       try {
-        const results = await Promise.all(
+        const results = await Promise.allSettled(
           favorites.map((favorite) => getBookById(favorite.book_id))
         );
 
         if (!ignore) {
-          setBooks(results);
+          const successfulBooks = results
+            .filter(
+              (result): result is PromiseFulfilledResult<Book> =>
+                result.status === 'fulfilled'
+            )
+            .map((result) => result.value);
+
+          setBooks(successfulBooks);
           setBooksError(null);
         }
       } catch {
@@ -71,19 +80,13 @@ export default function FavoritesPage() {
   }
 
   if (favoritesLoading || booksLoading) {
-    return (
-      <main className="mx-auto max-w-7xl px-6 py-12">
-        <p className="text-slate-500">Loading your favorites...</p>
-      </main>
-    );
+    return <Loader message="Loading your favorites..." />;
   }
 
   if (favoritesError || booksError) {
     return (
       <main className="mx-auto max-w-7xl px-6 py-12">
-        <p role="alert" className="text-red-600">
-          {favoritesError ?? booksError}
-        </p>
+        <ErrorMessage message={favoritesError ?? booksError ?? undefined} />
       </main>
     );
   }

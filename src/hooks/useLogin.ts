@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+
 import { signIn } from '@/lib/supabase/auth';
 
 export function useLogin() {
@@ -18,8 +19,9 @@ export function useLogin() {
         setError(
           error.message === 'Invalid login credentials'
             ? 'Invalid email or password.'
-            : error.message
+            : 'Unable to log in. Please try again.'
         );
+
         return false;
       }
 

@@ -14,7 +14,11 @@ export default function BookDetailsContent({ id }: BookDetailsContentProps) {
   const { book, loading, error, retry } = useBookDetails(id);
 
   if (loading) {
-    return <Loader message="Loading book details..." />;
+    return (
+      <div role="status" aria-live="polite">
+        <Loader message="Loading book details..." />
+      </div>
+    );
   }
 
   if (error) {
@@ -22,8 +26,16 @@ export default function BookDetailsContent({ id }: BookDetailsContentProps) {
   }
 
   if (!book) {
-    return <p className="py-10 text-center text-slate-500">Book not found.</p>;
+    return (
+      <p className="py-10 text-center text-slate-500" role="status">
+        Book not found.
+      </p>
+    );
   }
 
-  return <BookDetails book={book} />;
+  return (
+    <section aria-label="Book details">
+      <BookDetails book={book} />
+    </section>
+  );
 }

@@ -31,24 +31,29 @@ export default function BookList({ books }: BookListProps) {
   useEffect(() => {
     const supabase = createClient();
     let active = true;
+    let authStateChanged = false;
 
-    async function checkUser() {
-      const { data, error } = await supabase.auth.getUser();
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      authStateChanged = true;
 
       if (active) {
-        setUserId(error ? null : (data.user?.id ?? null));
+        setUserId(session?.user.id ?? null);
+        setCheckingAuth(false);
+      }
+    });
+
+    async function checkUser() {
+      const { data, error: authError } = await supabase.auth.getUser();
+
+      if (active && !authStateChanged) {
+        setUserId(authError ? null : (data.user?.id ?? null));
         setCheckingAuth(false);
       }
     }
 
     void checkUser();
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user.id ?? null);
-      setCheckingAuth(false);
-    });
 
     return () => {
       active = false;
@@ -65,13 +70,15 @@ export default function BookList({ books }: BookListProps) {
 
     setSavingBookId(bookId);
 
-    if (isFavorite(bookId)) {
-      await remove(bookId);
-    } else {
-      await add(bookId);
+    try {
+      if (isFavorite(bookId)) {
+        await remove(bookId);
+      } else {
+        await add(bookId);
+      }
+    } finally {
+      setSavingBookId(null);
     }
-
-    setSavingBookId(null);
   }
 
   return (
@@ -84,7 +91,9 @@ export default function BookList({ books }: BookListProps) {
 
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {books.map((book) => {
-          const bookId = book.key.split('/').pop() ?? '';
+          const bookId = book.key.split('/').filter(Boolean).pop();
+
+          if (!bookId) return null;
 
           return (
             <BookCard
@@ -93,7 +102,7 @@ export default function BookList({ books }: BookListProps) {
               favorite={isFavorite(bookId)}
               onToggleFavorite={() => handleToggleFavorite(bookId)}
               disabled={
-                checkingAuth || favoritesLoading || savingBookId === bookId
+                checkingAuth || favoritesLoading || savingBookId !== null
               }
             />
           );

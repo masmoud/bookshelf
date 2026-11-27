@@ -1,7 +1,8 @@
 'use client';
 
-import { signUp } from '@/lib/supabase/auth';
 import { useState } from 'react';
+
+import { signUp } from '@/lib/supabase/auth';
 
 type SignupResult = 'success' | 'confirmation_required' | 'error';
 
@@ -42,7 +43,7 @@ export function useSignup() {
         ) {
           setError('An account with this email address already exists.');
         } else {
-          setError(error.message);
+          setError('Unable to create your account. Please try again.');
         }
 
         return 'error';

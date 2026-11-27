@@ -16,12 +16,15 @@ export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const success = await login(email, password);
 
     if (success) {
+      setEmail('');
+      setPassword('');
+
       const destination =
         redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
           ? redirectTo

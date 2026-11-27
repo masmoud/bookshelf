@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, type SubmitEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState, type SubmitEvent } from 'react';
 
 import { useSignup } from '@/hooks/useSignup';
 
@@ -15,7 +15,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const result = await signup(email, password, confirmPassword);

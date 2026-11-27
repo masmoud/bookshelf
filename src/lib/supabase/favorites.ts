@@ -13,11 +13,11 @@ export async function getFavorites(): Promise<Favorite[]> {
 
   const { data, error } = await supabase
     .from('favorites')
-    .select('*')
+    .select('id, user_id, book_id, created_at')
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error('Unable to load your favorites.');
   }
 
   return data ?? [];
@@ -25,6 +25,11 @@ export async function getFavorites(): Promise<Favorite[]> {
 
 // Add a book to favorites
 export async function addFavorite(bookId: string): Promise<Favorite> {
+  const normalizedBookId = bookId.trim();
+  if (!normalizedBookId) {
+    throw new Error('A valid book ID is required.');
+  }
+
   const supabase = createClient();
 
   const {
@@ -42,11 +47,11 @@ export async function addFavorite(bookId: string): Promise<Favorite> {
       book_id: bookId,
       user_id: user.id
     })
-    .select()
+    .select('id, user_id, book_id, created_at')
     .single();
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error('Unable to add this book to your favorites.');
   }
 
   return data;
@@ -54,6 +59,11 @@ export async function addFavorite(bookId: string): Promise<Favorite> {
 
 // Remove a book from favorites
 export async function removeFavorite(bookId: string): Promise<void> {
+  const normalizedBookId = bookId.trim();
+  if (!normalizedBookId) {
+    throw new Error('A valid book ID is required.');
+  }
+
   const supabase = createClient();
 
   const { error } = await supabase
@@ -62,6 +72,6 @@ export async function removeFavorite(bookId: string): Promise<void> {
     .eq('book_id', bookId);
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error('Unable to remove this book from your favorites.');
   }
 }

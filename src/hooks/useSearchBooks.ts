@@ -34,7 +34,6 @@ export function useSearchBooks() {
 
   const search = useCallback(async (query: string) => {
     const trimmedQuery = query.trim();
-    const currentSearchId = ++searchId.current;
 
     if (!trimmedQuery) return;
 
@@ -45,7 +44,10 @@ export function useSearchBooks() {
 
     if (!searchTerm) return;
 
+    const currentSearchId = ++searchId.current;
+
     setLoading(true);
+    setLoadingMore(false);
     setError(null);
     setHasSearched(true);
     setCurrentQuery(searchTerm);
@@ -74,7 +76,9 @@ export function useSearchBooks() {
       setError(err instanceof Error ? err.message : 'Unable to fetch books.');
       setBooks([]);
     } finally {
-      setLoading(false);
+      if (currentSearchId === searchId.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -92,9 +96,7 @@ export function useSearchBooks() {
           ? await searchBooksByAuthor(currentQuery, BOOKS_PAGE_SIZE, offset)
           : await searchBooks(currentQuery, BOOKS_PAGE_SIZE, offset);
 
-      if (currentSearchId !== searchId.current) return;
-
-      if (!data) return;
+      if (currentSearchId !== searchId.current || !data) return;
 
       setBooks((current) => removeDuplicateBooks([...current, ...data.books]));
       setTotal(data.total);
@@ -114,6 +116,7 @@ export function useSearchBooks() {
 
   const resetSearch = useCallback(() => {
     searchId.current += 1;
+
     setBooks([]);
     setTotal(0);
     setError(null);

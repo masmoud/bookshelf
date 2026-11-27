@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 import type { BookDetailsData } from '@/types/book';
 
 type BookDetailsProps = {
@@ -5,16 +7,21 @@ type BookDetailsProps = {
 };
 
 export default function BookDetails({ book }: BookDetailsProps) {
+  const description = book.description?.trim();
+  const subjects = [...new Set(book.subject ?? [])].slice(0, 12);
+
   return (
     <div className="grid gap-10 md:grid-cols-[280px_1fr]">
       {/* Book cover */}
       <div className="mx-auto w-full max-w-70">
-        <div className="flex aspect-2/3 items-center justify-center overflow-hidden rounded-xl bg-slate-100 shadow-md">
+        <div className="relative flex aspect-2/3 items-center justify-center overflow-hidden rounded-xl bg-slate-100 shadow-md">
           {book.cover_i ? (
-            <img
+            <Image
               src={`https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`}
               alt={`Cover of ${book.title}`}
-              className="h-full w-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, 280px"
+              className="object-cover"
             />
           ) : (
             <span className="px-4 text-center text-sm text-slate-400">
@@ -31,17 +38,17 @@ export default function BookDetails({ book }: BookDetailsProps) {
         </h1>
 
         <p className="mt-3 text-lg text-slate-500">
-          {book.author_name?.join(', ') ?? 'Unknown author'}
+          {book.author_name?.join(', ') || 'Unknown author'}
         </p>
 
-        {book.description && (
+        {description && (
           <div className="mt-8 border-t border-slate-200 pt-6">
             <h2 className="text-lg font-semibold text-slate-900">
               About this book
             </h2>
 
             <p className="mt-3 whitespace-pre-line leading-7 text-slate-600">
-              {book.description ?? 'No description'}
+              {description}
             </p>
           </div>
         )}
@@ -62,12 +69,12 @@ export default function BookDetails({ book }: BookDetailsProps) {
           </div>
         </div>
 
-        {book.subject && book.subject.length > 0 && (
+        {subjects.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold text-slate-900">Subjects</h2>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              {book.subject.slice(0, 12).map((subject) => (
+              {subjects.map((subject) => (
                 <span
                   key={subject}
                   className="rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700"

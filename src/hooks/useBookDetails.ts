@@ -24,20 +24,22 @@ export function useBookDetails(id: string) {
   useEffect(() => {
     let ignore = false;
 
+    const currentRequestKey = `${id}-${retryCount}`;
+
     async function fetchBookDetails() {
       try {
         const data = await getBookById(id);
 
         if (!ignore) {
           setResult({
-            requestKey,
+            requestKey: currentRequestKey,
             book: data
           });
         }
       } catch (err) {
         if (!ignore) {
           setResult({
-            requestKey,
+            requestKey: currentRequestKey,
             error:
               err instanceof Error
                 ? err.message
@@ -47,12 +49,12 @@ export function useBookDetails(id: string) {
       }
     }
 
-    fetchBookDetails();
+    void fetchBookDetails();
 
     return () => {
       ignore = true;
     };
-  }, [id, requestKey]);
+  }, [id, retryCount]);
 
   const isCurrentResult = result?.requestKey === requestKey;
 

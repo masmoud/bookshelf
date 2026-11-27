@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 type BookFiltersProps = {
   author: string;
   minYear: string;
@@ -11,6 +13,8 @@ type BookFiltersProps = {
   onSortChange: (value: string) => void;
   onReset: () => void;
 };
+
+const CURRENT_YEAR = 2026;
 
 export default function BookFilters({
   author,
@@ -68,7 +72,7 @@ export default function BookFilters({
             id="minYear"
             type="number"
             min="1"
-            max={maxYear || new Date().getFullYear()}
+            max={maxYear || CURRENT_YEAR}
             step="1"
             value={minYear}
             onChange={(event) => onMinYearChange(event.target.value)}
@@ -89,7 +93,7 @@ export default function BookFilters({
             id="maxYear"
             type="number"
             min={minYear || '1'}
-            max={new Date().getFullYear()}
+            max={CURRENT_YEAR}
             step="1"
             value={maxYear}
             onChange={(event) => onMaxYearChange(event.target.value)}

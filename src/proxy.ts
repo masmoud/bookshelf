@@ -1,41 +1,15 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { updateSession } from '@/lib/supabase/update-session';
+import { createClient } from '@/lib/supabase/server';
+
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request
-  });
+  const supabaseResponse = await updateSession(request);
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-
-          supabaseResponse = NextResponse.next({
-            request
-          });
-
-          cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options);
-          });
-        }
-      }
-    }
-  );
-
+  const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  console.log('[PROXY] Path:', request.nextUrl.pathname);
-  console.log('[PROXY] User:', user?.id ?? 'Not authenticated');
 
   // Protect the favorites page
   if (request.nextUrl.pathname.startsWith('/favorites') && !user) {
@@ -44,14 +18,7 @@ export async function proxy(request: NextRequest) {
     redirectUrl.pathname = '/login';
     redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
 
-    const redirectResponse = NextResponse.redirect(redirectUrl);
-
-    // Preserve refreshed authentication cookies
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie);
-    });
-
-    return redirectResponse;
+    return NextResponse.redirect(redirectUrl);
   }
 
   return supabaseResponse;

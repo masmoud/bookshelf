@@ -20,15 +20,35 @@ const BOOK_FIELDS = [
   'subject'
 ].join(',');
 
-/**
- * Fetch books from Open Library.
- */
+function getPublicationYear(date?: string): number | undefined {
+  const match = date?.match(/\d{4}/);
+
+  return match ? Number(match[0]) : undefined;
+}
+
+function normalizeAuthorName(name: string): string {
+  return name.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function validatePagination(limit: number, offset: number) {
+  if (
+    !Number.isInteger(limit) ||
+    !Number.isInteger(offset) ||
+    limit <= 0 ||
+    offset < 0
+  ) {
+    throw new Error('Invalid pagination parameters.');
+  }
+}
 
 type BookSearchResult = {
   books: Book[];
   total: number;
 };
 
+/**
+ * Fetch books from Open Library.
+ */
 async function fetchBooks(
   params: Record<string, string>
 ): Promise<BookSearchResult> {
@@ -57,6 +77,8 @@ export async function getPopularBooks(
   limit = 12,
   offset = 0
 ): Promise<BookSearchResult> {
+  validatePagination(limit, offset);
+
   return fetchBooks({
     q: 'bestseller',
     limit: String(limit),
@@ -72,8 +94,9 @@ export async function searchBooks(
   limit = 12,
   offset = 0
 ): Promise<BookSearchResult> {
-  const trimmedQuery = query.trim();
+  validatePagination(limit, offset);
 
+  const trimmedQuery = query.trim();
   if (!trimmedQuery) {
     return { books: [], total: 0 };
   }
@@ -93,7 +116,12 @@ export async function searchBooksByAuthor(
   limit = 12,
   offset = 0
 ): Promise<BookSearchResult | null> {
-  const searchParams = new URLSearchParams({ q: query });
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return null;
+
+  const searchParams = new URLSearchParams({ q: trimmedQuery });
+
+  validatePagination(limit, offset);
 
   const response = await fetch(
     `${API_URL}/search/authors.json?${searchParams.toString()}`
@@ -105,22 +133,16 @@ export async function searchBooksByAuthor(
 
   const data: OpenLibraryAuthorSearchResponse = await response.json();
 
-  const normalizedQuery = query
-    .toLowerCase()
-    .replace(/[.,]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const normalizedQuery = normalizeAuthorName(trimmedQuery);
 
   const author = data.docs.find(
-    (item) =>
-      item.name
-        .toLowerCase()
-        .replace(/[.,]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim() === normalizedQuery
+    (item) => item.name && normalizeAuthorName(item.name) === normalizedQuery
   );
 
   if (!author) return null;
+
+  const authorName = author?.name;
+  if (!authorName) return null;
 
   const worksParams = new URLSearchParams({
     limit: String(limit),
@@ -128,7 +150,7 @@ export async function searchBooksByAuthor(
   });
 
   const worksResponse = await fetch(
-    `${API_URL}${`/authors/${author.key}/works.json`}?${worksParams.toString()}`
+    `${API_URL}/authors/${author.key}/works.json?${worksParams.toString()}`
   );
 
   if (!worksResponse.ok) {
@@ -140,10 +162,8 @@ export async function searchBooksByAuthor(
   const books: Book[] = worksData.entries.map((work) => ({
     key: work.key,
     title: work.title,
-    author_name: [author.name],
-    first_publish_year: work.first_publish_date
-      ? Number.parseInt(work.first_publish_date.slice(-4), 10)
-      : undefined,
+    author_name: [authorName],
+    first_publish_year: getPublicationYear(work.first_publish_date),
     cover_i: work.covers?.[0],
     subject: work.subjects
   }));
@@ -193,18 +213,13 @@ export async function getBookById(id: string): Promise<BookDetailsData> {
       ? data.description
       : data.description?.value;
 
-  const publicationYear = data.first_publish_date
-    ? Number(data.first_publish_date.match(/\d{4}/)?.[0])
-    : undefined;
+  const publicationYear = getPublicationYear(data.first_publish_date);
 
   return {
     key: data.key,
     title: data.title,
     author_name: authors.filter((author): author is string => author !== null),
-    first_publish_year:
-      publicationYear && !Number.isNaN(publicationYear)
-        ? publicationYear
-        : undefined,
+    first_publish_year: publicationYear,
     cover_i: data.covers?.[0],
     subject: data.subjects,
     description

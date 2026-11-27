@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   addFavorite,
@@ -14,42 +14,55 @@ export function useFavorites() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const requestId = useRef(0);
+
   // Fetch the authenticated user's favorites
   const fetchFavorites = useCallback(async () => {
+    const currentRequestId = ++requestId.current;
+
+    setLoading(true);
     setError(null);
 
     try {
       const data = await getFavorites();
-      setFavorites(data);
+
+      if (currentRequestId === requestId.current) {
+        setFavorites(data);
+      }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to fetch favorites.'
-      );
+      if (currentRequestId === requestId.current) {
+        setError(
+          err instanceof Error ? err.message : 'Unable to fetch favorites.'
+        );
+      }
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   // Fetch favorites when the hook is first mounted
   useEffect(() => {
-    let ignore = false;
+    let active = true;
+    const currentRequestId = ++requestId.current;
 
     async function loadFavorites() {
       try {
         const data = await getFavorites();
 
-        if (!ignore) {
+        if (active && currentRequestId === requestId.current) {
           setFavorites(data);
           setError(null);
         }
       } catch (err) {
-        if (!ignore) {
+        if (active && currentRequestId === requestId.current) {
           setError(
             err instanceof Error ? err.message : 'Unable to fetch favorites.'
           );
         }
       } finally {
-        if (!ignore) {
+        if (active && currentRequestId === requestId.current) {
           setLoading(false);
         }
       }
@@ -58,16 +71,20 @@ export function useFavorites() {
     void loadFavorites();
 
     return () => {
-      ignore = true;
+      active = false;
+      requestId.current += 1;
     };
   }, []);
 
   // Add a book to favorites
   const add = useCallback(async (bookId: string): Promise<boolean> => {
+    requestId.current += 1;
     setError(null);
 
     try {
       const favorite = await addFavorite(bookId);
+
+      requestId.current += 1;
 
       setFavorites((current) => {
         if (current.some((item) => item.book_id === bookId)) {
@@ -87,10 +104,13 @@ export function useFavorites() {
 
   // Remove a book from favorites
   const remove = useCallback(async (bookId: string): Promise<boolean> => {
+    requestId.current += 1;
     setError(null);
 
     try {
       await removeFavorite(bookId);
+
+      requestId.current += 1;
 
       setFavorites((current) =>
         current.filter((favorite) => favorite.book_id !== bookId)
